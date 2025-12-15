@@ -763,7 +763,7 @@ MainScene.prototype.create = function() {
     // === DIFFICULTY SETTINGS ===
     const difficulty = GameData.getDifficulty();
     const difficultySettings = {
-        easy: { time: 120000, hints: 5, requiredPerDay: [2, 2, 3, 3, 3, 4, 4] },
+        easy: { time: 120000, hints: 5, requiredPerDay: [2, 2, 3, 3, 4, 4, 5] },
         normal: { time: 90000, hints: 3, requiredPerDay: [2, 3, 3, 4, 4, 5, 5] },
         hard: { time: 60000, hints: 1, requiredPerDay: [3, 4, 4, 5, 5, 6, 6] }
     };
@@ -922,13 +922,13 @@ MainScene.prototype.create = function() {
     
     // === DAY CHANGES (which objects change each day) ===
     this.dayChanges = {
-        1: ['clock', 'plant'],
-        2: ['clock', 'plant', 'mug'],
-        3: ['bed', 'photo', 'lamp'],
-        4: ['window', 'book', 'lamp', 'mug'],
-        5: ['clock', 'bed', 'plant', 'photo'],
-        6: ['window', 'lamp', 'book', 'mug', 'photo'],
-        7: ['bed', 'clock', 'plant', 'window', 'book']
+        1: ['clock', 'plant', 'mug'],                                    // 3 changes
+        2: ['clock', 'plant', 'mug', 'lamp'],                            // 4 changes
+        3: ['bed', 'photo', 'lamp', 'book'],                             // 4 changes
+        4: ['window', 'book', 'lamp', 'mug', 'plant'],                   // 5 changes
+        5: ['clock', 'bed', 'plant', 'photo', 'mug'],                    // 5 changes
+        6: ['window', 'lamp', 'book', 'mug', 'photo', 'bed'],            // 6 changes
+        7: ['bed', 'clock', 'plant', 'window', 'book', 'photo']          // 6 changes
     };
     
     // === STORY TEXT ===
