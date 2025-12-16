@@ -14,6 +14,13 @@ const config = {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
+    input: {
+        activePointers: 3,
+        touch: {
+            capture: true,
+            target: null
+        }
+    },
     scene: [TitleScene, InstructionsScene, TutorialScene, MainScene, CreditsScene]
 };
 
@@ -1268,9 +1275,10 @@ MainScene.prototype.createAmbientParticles = function() {
 // ============================================================
 
 MainScene.prototype.showDayStartInstructions = function() {
-    // Dark overlay
+    // Dark overlay - also interactive for mobile tap-anywhere
     const overlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0.92)
-        .setDepth(300);
+        .setDepth(300)
+        .setInteractive();
     
     // Big clear title
     const title = this.add.text(700, 200, 'HOW TO PLAY', {
@@ -1295,14 +1303,18 @@ MainScene.prototype.showDayStartInstructions = function() {
         wordWrap: { width: 850 }
     }).setOrigin(0.5).setDepth(301);
     
-    // Start button
+    // Start button with larger hit area for mobile
     const startBtn = this.add.text(700, 720, '▶ START DAY 1', {
         font: 'bold 38px monospace',
         fill: '#68d391',
         backgroundColor: '#1a202c',
         padding: { x: 35, y: 18 }
     }).setOrigin(0.5).setDepth(302)
-      .setInteractive({ useHandCursor: true });
+      .setInteractive({ 
+          useHandCursor: true,
+          hitArea: new Phaser.Geom.Rectangle(-100, -20, 400, 80),
+          hitAreaCallback: Phaser.Geom.Rectangle.Contains
+      });
     
     // Pulse animation
     this.tweens.add({
@@ -1329,9 +1341,14 @@ MainScene.prototype.showDayStartInstructions = function() {
         });
     });
     
-    startBtn.on('pointerdown', () => {
+    // Use pointerup for better mobile responsiveness
+    const startGame = () => {
         // Play whoosh sound for start
         this.playSound('whoosh');
+        
+        // Remove all event listeners
+        startBtn.removeAllListeners();
+        overlay.removeAllListeners();
         
         this.tweens.add({
             targets: [overlay, title, instructions, startBtn],
@@ -1345,7 +1362,12 @@ MainScene.prototype.showDayStartInstructions = function() {
                 this.startDay();
             }
         });
-    });
+    };
+    
+    startBtn.on('pointerup', startGame);
+    
+    // Fallback: tap anywhere to start (helps on mobile)
+    overlay.on('pointerup', startGame);
 };
 
 // ============================================================
