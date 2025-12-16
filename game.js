@@ -188,7 +188,7 @@ TitleScene.prototype.create = function() {
         wordWrap: { width: 1000 }
     }).setOrigin(0.5);
     
-    const taglineText = '"Time loops. Memory fades. Truth awaits."';
+    const taglineText = '"You\'ve lived this day before. You\'ll live it again. Unless you remember."';
     let charIndex = 0;
     this.time.delayedCall(1800, () => {
         this.time.addEvent({
@@ -387,12 +387,12 @@ InstructionsScene.prototype.create = function() {
     
     // Instructions content
     const instructions = [
-        { icon: '🎯', title: 'GOAL', text: 'Find all differences before time runs out' },
-        { icon: '🕐', title: 'TIME', text: '90 seconds per day (Green → Yellow → Red)' },
-        { icon: '🔍', title: 'DIFFERENCES', text: 'Objects change: color, size, position, rotation, alpha' },
-        { icon: '💡', title: 'HINTS', text: '3 per game - use wisely to reveal differences' },
-        { icon: '⚡', title: 'COMBOS', text: 'Find quickly: 2x = +15pts | 3x = +20pts | 5x = +30pts' },
-        { icon: '📖', title: 'STORY', text: 'Uncover why you are trapped in the time loop' }
+        { icon: '🎯', title: 'YOUR MISSION', text: 'Find all differences to survive each day and escape the loop' },
+        { icon: '⏰', title: 'TIME PRESSURE', text: '90 seconds per day. Green is safe. Red means danger.' },
+        { icon: '🔍', title: 'WHAT CHANGES', text: 'Colors fade. Objects move. Sizes shift. Nothing is safe.' },
+        { icon: '💡', title: 'HINTS', text: 'Only 3 hints for your entire journey. Use them when desperate.' },
+        { icon: '⚡', title: 'COMBO BONUS', text: 'Find fast = more points: 2x = +15 | 3x = +20 | 5x = +30' },
+        { icon: '📖', title: 'THE MYSTERY', text: 'Each day reveals why you\'re trapped. Pay attention.' }
     ];
     
     let yPos = 220;
@@ -770,9 +770,9 @@ MainScene.prototype.create = function() {
     // === DIFFICULTY SETTINGS ===
     const difficulty = GameData.getDifficulty();
     const difficultySettings = {
-        easy: { time: 120000, hints: 5, requiredPerDay: [2, 2, 3, 3, 4, 4, 5] },
-        normal: { time: 90000, hints: 3, requiredPerDay: [2, 3, 3, 4, 4, 5, 5] },
-        hard: { time: 60000, hints: 1, requiredPerDay: [3, 4, 4, 5, 5, 6, 6] }
+        easy: { time: 120000, hints: 5, requiredPerDay: [2, 2, 3, 3, 4, 4, 5] },      // Smooth progression
+        normal: { time: 90000, hints: 3, requiredPerDay: [2, 2, 3, 3, 4, 5, 5] },     // Gradual increase
+        hard: { time: 60000, hints: 1, requiredPerDay: [2, 3, 4, 4, 5, 5, 6] }        // Challenging but fair
     };
     const settings = difficultySettings[difficulty];
     
@@ -938,15 +938,26 @@ MainScene.prototype.create = function() {
         7: ['bed', 'clock', 'plant', 'window', 'book', 'photo']          // 6 changes
     };
     
-    // === STORY TEXT ===
+    // === DAY COMPLETE MESSAGES - Reveal story progressively ===
+    this.dayCompleteMessages = {
+        1: "Something's wrong. You feel it in your bones.\n\nThe room... it will change again tomorrow.",
+        2: "You're starting to remember. Fragments. Whispers.\n\nThis has happened before. Many times before.",
+        3: "The loop tightens. Objects shift when you're not looking.\n\nYou need to pay closer attention.",
+        4: "Every difference you find brings a memory back.\n\nBut memories can be lies. Can you trust them?",
+        5: "You're getting closer to the truth.\n\nThe room is trying to tell you something.",
+        6: "Almost there. One more day.\n\nThe loop is weakening. You can feel it.",
+        7: "You found them all. Every single change.\n\nNow... can you escape?"
+    };
+    
+    // === STORY TEXT - Progressive mystery building ===
     this.storyText = {
-        1: "Another morning. Coffee's cold again.\n\nWhy does this feel... familiar?",
-        2: "The clock feels wrong.\n\nHave I lived this before?",
-        3: "Cracks in the walls.\n\nOr are they cracks in my mind?",
-        4: "The photo... was she always smiling?\n\nI can't remember anymore.",
-        5: "Time isn't moving.\n\nI'm not moving.\n\nWe're stuck.",
-        6: "I remember now.\n\nThe choice I made.\n\nThe day everything changed.",
-        7: "This is the last loop.\n\nBreak free or stay forever?\n\nI choose..."
+        1: "DAY 1\n\nYour alarm didn't ring.\nThe coffee tastes... wrong.\n\nWhy does everything feel like déjà vu?",
+        2: "DAY 2\n\nYou've seen this clock before.\nThis exact angle. This exact moment.\n\nHow many times have you woken up here?",
+        3: "DAY 3\n\nThe walls are changing.\nOr are you forgetting what they looked like?\n\nMemories blur. Reality shifts.",
+        4: "DAY 4\n\nThat photo on the wall...\nWas it always there?\n\nWho is she? Why can't you remember her face?",
+        5: "DAY 5\n\nTime stopped moving forward.\nYou're caught in the loop.\n\nEvery object tells a story you've forgotten.",
+        6: "DAY 6\n\nFragments return. A choice. A mistake.\n\nThis room is your prison.\nThe differences are the key.",
+        7: "DAY 7\n\nThe final day. The final chance.\n\nFind the truth in what has changed.\nBreak free, or loop forever."
     };
     
     // === BUILD GAME ===
@@ -999,8 +1010,8 @@ MainScene.prototype.initializeAudio = function() {
     
     try {
         this.sfx.click = this.sound.add('sfx_click', { volume: 0.6 });
-        this.sfx.correct = this.sound.add('sfx_correct', { volume: 0.8 });
-        this.sfx.wrong = this.sound.add('sfx_wrong', { volume: 0.8 });
+        this.sfx.correct = this.sound.add('sfx_correct', { volume: 0.5 });  // Softer for long sessions
+        this.sfx.wrong = this.sound.add('sfx_wrong', { volume: 0.7 });
         this.sfx.tick = this.sound.add('sfx_tick', { volume: 0.6 });
         this.sfx.dayComplete = this.sound.add('sfx_dayComplete', { volume: 0.9 });
         this.sfx.whoosh = this.sound.add('sfx_whoosh', { volume: 0.7 });
@@ -1290,12 +1301,12 @@ MainScene.prototype.showDayStartInstructions = function() {
     
     // Clear instructions with icons
     const instructions = this.add.text(700, 420, 
-        '🔍 FIND THE DIFFERENCES\n\n' +
-        'Objects in this room have CHANGED\n\n' +
-        '👆 CLICK on objects that look different\n\n' +
-        '⏱️ Find ALL differences before timer runs out\n\n' +
-        '✅ Correct = +10 pts | ❌ Wrong = -5 pts\n\n' +
-        '💡 Use HINT button if stuck (3 hints total)', {
+        '🔍 YOUR MISSION\n\n' +
+        'The room changes every day.\nSomething is different. Something is WRONG.\n\n' +
+        '👆 TAP objects that have changed\n\n' +
+        '⏱️ Beat the clock to survive the day\n\n' +
+        '✅ Correct find: +10 pts | ❌ Wrong guess: -5 pts\n\n' +
+        '💡 Stuck? Use HINT (3 per game) but choose wisely!', {
         font: '22px monospace',
         fill: '#f7fafc',
         align: 'center',
@@ -1787,11 +1798,31 @@ MainScene.prototype.completeDay = function() {
     // Check achievements
     this.checkDayAchievements();
     
-    // Show day stats
-    const statsText = this.add.text(700, 750, 
-        `Day ${this.currentDay} Complete!\nScore: +${this.score}\nMax Combo: ${this.maxCombo}x`, {
-        font: 'bold 28px monospace',
+    // Day completion title
+    const titleText = this.add.text(700, 250, `DAY ${this.currentDay} SURVIVED`, {
+        font: 'bold 56px monospace',
         fill: '#68d391',
+        align: 'center',
+        stroke: '#000000',
+        strokeThickness: 6
+    }).setOrigin(0.5).setAlpha(0).setDepth(50);
+    
+    // Story message for completed day
+    const storyMsg = this.add.text(700, 400, this.dayCompleteMessages[this.currentDay], {
+        font: 'bold 24px monospace',
+        fill: '#f7fafc',
+        align: 'center',
+        lineSpacing: 8,
+        wordWrap: { width: 900 },
+        stroke: '#000000',
+        strokeThickness: 3
+    }).setOrigin(0.5).setAlpha(0).setDepth(50);
+    
+    // Show day stats
+    const statsText = this.add.text(700, 600, 
+        `Score Earned: +${this.foundThisDay * 10}\nTotal: ${this.score} | Best Combo: ${this.maxCombo}x`, {
+        font: 'bold 24px monospace',
+        fill: '#ffd700',
         align: 'center',
         stroke: '#000000',
         strokeThickness: 3,
@@ -1800,20 +1831,37 @@ MainScene.prototype.completeDay = function() {
     }).setOrigin(0.5).setAlpha(0).setDepth(50);
     
     this.tweens.add({
-        targets: statsText,
+        targets: titleText,
         alpha: 1,
-        y: 700,
+        scale: { from: 0.5, to: 1 },
         duration: 600,
         ease: 'Back.easeOut'
     });
     
-    // Show story after 1.8s
-    this.time.delayedCall(1800, () => {
+    this.tweens.add({
+        targets: storyMsg,
+        alpha: 1,
+        duration: 800,
+        delay: 400
+    });
+    
+    this.tweens.add({
+        targets: statsText,
+        alpha: 1,
+        duration: 600,
+        delay: 800,
+        ease: 'Back.easeOut'
+    });
+    
+    // Show story after 3s
+    this.time.delayedCall(3000, () => {
         this.tweens.add({
-            targets: statsText,
+            targets: [titleText, storyMsg, statsText],
             alpha: 0,
             duration: 400,
             onComplete: () => {
+                titleText.destroy();
+                storyMsg.destroy();
                 statsText.destroy();
                 this.showStory();
             }
@@ -2139,6 +2187,95 @@ MainScene.prototype.showEnding = function() {
     // Stop all sounds
     if (this.music) this.music.stop();
     
+    // Show congratulations popup first
+    this.showCongratulations();
+};
+
+MainScene.prototype.showCongratulations = function() {
+    // Congratulations overlay
+    const bg = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0)
+        .setDepth(800);
+    
+    this.tweens.add({
+        targets: bg,
+        alpha: 0.9,
+        duration: 800
+    });
+    
+    // Victory text
+    const congrats = this.add.text(700, 350, '🎉 CONGRATULATIONS! 🎉', {
+        font: 'bold 72px monospace',
+        fill: '#ffd700',
+        stroke: '#000000',
+        strokeThickness: 10,
+        align: 'center'
+    }).setOrigin(0.5).setDepth(801).setAlpha(0).setScale(0.5);
+    
+    this.tweens.add({
+        targets: congrats,
+        alpha: 1,
+        scale: 1,
+        duration: 1000,
+        delay: 500,
+        ease: 'Elastic.easeOut'
+    });
+    
+    // Success message
+    const message = this.add.text(700, 500, 'You broke the time loop!\n\nYou are finally FREE!', {
+        font: 'bold 36px monospace',
+        fill: '#68d391',
+        stroke: '#000000',
+        strokeThickness: 5,
+        align: 'center',
+        lineSpacing: 10
+    }).setOrigin(0.5).setDepth(801).setAlpha(0);
+    
+    this.tweens.add({
+        targets: message,
+        alpha: 1,
+        duration: 800,
+        delay: 1200
+    });
+    
+    // Play celebration sound
+    this.time.delayedCall(500, () => {
+        this.playSound('dayComplete');
+    });
+    
+    // Continue prompt
+    const continueText = this.add.text(700, 650, 'Click to see your ending...', {
+        font: '28px monospace',
+        fill: '#cbd5e0'
+    }).setOrigin(0.5).setDepth(801).setAlpha(0);
+    
+    this.tweens.add({
+        targets: continueText,
+        alpha: 1,
+        duration: 600,
+        delay: 2000,
+        yoyo: true,
+        repeat: -1
+    });
+    
+    // Click to continue to full ending
+    bg.setInteractive();
+    bg.once('pointerup', () => {
+        this.tweens.add({
+            targets: [bg, congrats, message, continueText],
+            alpha: 0,
+            duration: 600,
+            onComplete: () => {
+                bg.destroy();
+                congrats.destroy();
+                message.destroy();
+                continueText.destroy();
+                this.showFullEnding();
+            }
+        });
+    });
+};
+
+MainScene.prototype.showFullEnding = function() {
     // Epic ending sequence
     const bg = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0)
         .setDepth(700);
