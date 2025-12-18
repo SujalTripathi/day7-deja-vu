@@ -1116,9 +1116,14 @@ MainScene.prototype.buildRoom = function() {
         
         obj.on('pointerout', () => {
             this.tweens.killTweensOf(obj);
-            this.tweens.killTweensOf(obj.glow);
-            obj.setScale(obj.data.states[obj.stateIndex].scale || 1);
-            obj.glow.setAlpha(0);
+            if (obj.glow) {
+                this.tweens.killTweensOf(obj.glow);
+                obj.glow.setAlpha(0);
+            }
+            const currentState = obj.data.states[obj.stateIndex];
+            if (currentState) {
+                obj.setScale(currentState.scale || 1);
+            }
         });
         
         obj.on('pointerdown', () => this.handleClick(obj));
@@ -1488,26 +1493,31 @@ MainScene.prototype.applyDayChanges = function() {
             // Add SUBTLE pulse to differences (helps players find them)
             this.time.delayedCall(2000, () => {
                 if (!obj.found && obj.isDifference) {
-                    this.tweens.add({
-                        targets: obj,
-                        scaleX: (obj.data.states[obj.stateIndex].scale || 1) * 1.03,
-                        scaleY: (obj.data.states[obj.stateIndex].scale || 1) * 1.03,
-                        duration: 2000,
-                        yoyo: true,
-                        repeat: -1,
-                        ease: 'Sine.easeInOut'
-                    });
+                    const currentState = obj.data.states[obj.stateIndex];
+                    if (currentState) {
+                        this.tweens.add({
+                            targets: obj,
+                            scaleX: (currentState.scale || 1) * 1.03,
+                            scaleY: (currentState.scale || 1) * 1.03,
+                            duration: 2000,
+                            yoyo: true,
+                            repeat: -1,
+                            ease: 'Sine.easeInOut'
+                        });
+                    }
                 }
             });
         } else {
             obj.stateIndex = 0;
         }
         
-        // Apply visual state
+        // Apply visual state with safety check
         const state = obj.data.states[obj.stateIndex];
-        obj.setFillStyle(state.color);
-        obj.setAlpha(state.alpha);
-        obj.setScale(state.scale || 1);
+        if (state) {
+            obj.setFillStyle(state.color);
+            obj.setAlpha(state.alpha);
+            obj.setScale(state.scale || 1);
+        }
         obj.setAngle(state.angle || 0);
     });
 };
@@ -3073,29 +3083,40 @@ MainScene.prototype.applyDay7GlitchEffect = function() {
 // ============================================================
 
 MainScene.prototype.showVictoryScreen = function() {
+    console.log('Victory Screen: Starting');
+    
     // Pause game and unlock special achievement
     this.isPaused = true;
+    
+    // Disable UI buttons so they don't block clicks
+    if (this.musicBtn) this.musicBtn.disableInteractive();
+    if (this.hintBtn) this.hintBtn.disableInteractive();
+    if (this.pauseBtn) this.pauseBtn.disableInteractive();
+    
     this.unlockAchievement(ACHIEVEMENTS.ESCAPED);
     
     // 1. Fade room to black
     this.cameras.main.fadeOut(1000, 0, 0, 0);
     
-    this.cameras.main.once('camerafadeoutcomplete', () => {
+    // Use delayedCall instead of camera callback for reliability
+    this.time.delayedCall(1100, () => {
+        console.log('Victory Screen: Fade complete, showing content');
+        
         // Create particle explosion effect (exploding clock)
         this.createTimeParticleExplosion();
         
-        // 2. Dark overlay background
-        const overlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0.95)
-            .setDepth(900);
+        // 2. Dark overlay background - DEPTH 1200+
+        const overlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0.98)
+            .setDepth(1200);
         
-        // 3. Big glowing title "THE LOOP IS BROKEN"
+        // 3. Big glowing title "THE LOOP IS BROKEN" - DEPTH 1201+
         const title = this.add.text(700, 200, 'THE LOOP IS BROKEN', {
             font: 'bold 72px monospace',
             fill: '#ffd700',
             stroke: '#ff6b35',
             strokeThickness: 8,
             align: 'center'
-        }).setOrigin(0.5).setDepth(901).setAlpha(0);
+        }).setOrigin(0.5).setDepth(1201).setAlpha(0);
         
         // Glow effect on title
         this.tweens.add({
@@ -3113,7 +3134,7 @@ MainScene.prototype.showVictoryScreen = function() {
             this.playSound('dayComplete');
         });
         
-        // 4. Story text (typing effect)
+        // 4. Story text (typing effect) - DEPTH 1201
         const storyText = "Day after day, memory faded.\nBut you remembered the truth.\nThe room was your prison of regret.\nNow, time moves forward.";
         
         const story = this.add.text(700, 350, '', {
@@ -3122,7 +3143,7 @@ MainScene.prototype.showVictoryScreen = function() {
             align: 'center',
             lineSpacing: 12,
             wordWrap: { width: 1000 }
-        }).setOrigin(0.5).setDepth(901);
+        }).setOrigin(0.5).setDepth(1201);
         
         // Type out story text
         let charIndex = 0;
@@ -3137,12 +3158,15 @@ MainScene.prototype.showVictoryScreen = function() {
         
         // 5. Show stats after story completes
         this.time.delayedCall(storyText.length * 50 + 1000, () => {
+            console.log('Victory Screen: Showing stats');
             this.showVictoryStats(overlay);
         });
     });
 };
 
 MainScene.prototype.showVictoryStats = function(overlay) {
+    console.log('Victory Stats: Displaying stats');
+    
     // Calculate stats
     const totalAchievements = Object.keys(ACHIEVEMENTS).length;
     const unlockedCount = GameData.data.achievements.length;
@@ -3151,16 +3175,16 @@ MainScene.prototype.showVictoryStats = function(overlay) {
     const minutes = Math.floor(playTime / 60);
     const seconds = playTime % 60;
     
-    // Stats container
+    // Stats container - DEPTH 1202+
     const statsBox = this.add.rectangle(700, 550, 600, 200, 0x1a202c, 0.9)
         .setStrokeStyle(3, 0xed8936)
-        .setDepth(901)
+        .setDepth(1202)
         .setAlpha(0);
     
     const statsTitle = this.add.text(700, 470, '═══ YOUR JOURNEY ═══', {
         font: 'bold 24px monospace',
         fill: '#ed8936'
-    }).setOrigin(0.5).setDepth(902).setAlpha(0);
+    }).setOrigin(0.5).setDepth(1203).setAlpha(0);
     
     const statsText = this.add.text(700, 550, 
         `Final Score: ${this.score.toLocaleString()}\n` +
@@ -3171,7 +3195,7 @@ MainScene.prototype.showVictoryStats = function(overlay) {
         fill: '#ffffff',
         align: 'center',
         lineSpacing: 8
-    }).setOrigin(0.5).setDepth(902).setAlpha(0);
+    }).setOrigin(0.5).setDepth(1203).setAlpha(0);
     
     // Fade in stats
     this.tweens.add({
@@ -3183,11 +3207,14 @@ MainScene.prototype.showVictoryStats = function(overlay) {
     
     // 7. Show buttons
     this.time.delayedCall(1200, () => {
+        console.log('Victory Stats: Showing buttons');
         this.createVictoryButtons(overlay);
     });
 };
 
 MainScene.prototype.createVictoryButtons = function(overlay) {
+    console.log('Victory Buttons: Creating interactive buttons');
+    
     const buttonY = 720;
     const buttonData = [
         { text: '↻ REPLAY', x: 400, color: 0x68d391, action: 'replay' },
@@ -3197,14 +3224,14 @@ MainScene.prototype.createVictoryButtons = function(overlay) {
     
     buttonData.forEach(data => {
         const btn = this.add.rectangle(data.x, buttonY, 260, 60, data.color)
-            .setDepth(902)
+            .setDepth(1204)
             .setAlpha(0)
             .setInteractive({ useHandCursor: true });
         
         const btnText = this.add.text(data.x, buttonY, data.text, {
             font: 'bold 22px monospace',
             fill: '#000000'
-        }).setOrigin(0.5).setDepth(903).setAlpha(0);
+        }).setOrigin(0.5).setDepth(1205).setAlpha(0);
         
         // Fade in buttons
         this.tweens.add({
@@ -3233,26 +3260,27 @@ MainScene.prototype.createVictoryButtons = function(overlay) {
             });
         });
         
-        // Button actions
+        // Button actions with proper scene restart
         btn.on('pointerup', () => {
+            console.log('Victory Button clicked:', data.action);
             this.playSound('click');
             
             if (data.action === 'replay') {
                 // Reset game and start from Day 1
                 this.cameras.main.fadeOut(500, 0, 0, 0);
-                this.cameras.main.once('camerafadeoutcomplete', () => {
+                this.time.delayedCall(600, () => {
                     this.scene.restart();
                 });
             } else if (data.action === 'achievements') {
                 // Go to achievements/credits scene
                 this.cameras.main.fadeOut(500, 0, 0, 0);
-                this.cameras.main.once('camerafadeoutcomplete', () => {
+                this.time.delayedCall(600, () => {
                     this.scene.start('CreditsScene');
                 });
             } else if (data.action === 'menu') {
                 // Return to title screen
                 this.cameras.main.fadeOut(500, 0, 0, 0);
-                this.cameras.main.once('camerafadeoutcomplete', () => {
+                this.time.delayedCall(600, () => {
                     this.scene.start('TitleScene');
                 });
             }
@@ -3261,6 +3289,8 @@ MainScene.prototype.createVictoryButtons = function(overlay) {
 };
 
 MainScene.prototype.createTimeParticleExplosion = function() {
+    console.log('Particle Explosion: Creating time particles');
+    
     // Create exploding clock particle effect
     const centerX = 700;
     const centerY = 450;
@@ -3270,7 +3300,7 @@ MainScene.prototype.createTimeParticleExplosion = function() {
         const angle = (i / 60) * Math.PI * 2;
         const distance = 50 + Math.random() * 100;
         const particle = this.add.circle(centerX, centerY, 3 + Math.random() * 5, 0xffd700, 0.8)
-            .setDepth(850);
+            .setDepth(1150);
         
         this.tweens.add({
             targets: particle,
@@ -3289,7 +3319,7 @@ MainScene.prototype.createTimeParticleExplosion = function() {
         const hand = this.add.rectangle(centerX, centerY, 4, 50, 0xff6b35)
             .setOrigin(0.5, 1)
             .setRotation(angle)
-            .setDepth(851);
+            .setDepth(1151);
         
         this.tweens.add({
             targets: hand,
@@ -3307,7 +3337,7 @@ MainScene.prototype.createTimeParticleExplosion = function() {
     for (let i = 0; i < 3; i++) {
         const ring = this.add.circle(centerX, centerY, 10, 0xed8936, 0)
             .setStrokeStyle(4, 0xffd700)
-            .setDepth(849);
+            .setDepth(1152);
         
         this.tweens.add({
             targets: ring,
