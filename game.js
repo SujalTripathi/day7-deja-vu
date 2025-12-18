@@ -101,7 +101,8 @@ const ACHIEVEMENTS = {
     NO_HINTS: { id: 'no_hints', name: 'No Hints Needed', desc: 'Complete game without hints', icon: '🧠' },
     HARD_MODE: { id: 'hard_mode', name: 'Time Traveler', desc: 'Complete HARD mode', icon: '⏰' },
     PERSISTENT: { id: 'persistent', name: 'Persistent', desc: 'Retry 3 times and succeed', icon: '💪' },
-    SPEED_DEMON: { id: 'speed_demon', name: 'Speed Demon', desc: 'Complete in under 8 minutes', icon: '⚡' }
+    SPEED_DEMON: { id: 'speed_demon', name: 'Speed Demon', desc: 'Complete in under 8 minutes', icon: '⚡' },
+    ESCAPED: { id: 'escaped', name: 'ESCAPED THE VOID', desc: 'Break free from the time loop', icon: '🔓' }
 };
 
 // ============================================================
@@ -1027,8 +1028,25 @@ MainScene.prototype.initializeAudio = function() {
 // ============================================================
 
 MainScene.prototype.buildRoom = function() {
-    // Background
-    this.add.rectangle(700, 450, 1400, 900, 0x2d3748);
+    // Background - Day 7 gets ominous red tint
+    let bgColor = 0x2d3748;
+    if (this.currentDay === 7) {
+        bgColor = 0x3d2738; // Dark reddish for final day
+    }
+    
+    const bg = this.add.rectangle(700, 450, 1400, 900, bgColor);
+    
+    // Day 7: Pulsing ominous effect
+    if (this.currentDay === 7) {
+        this.tweens.add({
+            targets: bg,
+            alpha: { from: 1, to: 0.85 },
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+    }
     
     // Vignette overlay (dark edges)
     const vignette = this.add.graphics();
@@ -1554,6 +1572,12 @@ MainScene.prototype.handleClick = function(obj) {
             }
         });
         
+        // Particle burst effect
+        this.createParticleBurst(obj.x, obj.y, 0x68d391);
+        
+        // Particle burst effect
+        this.createParticleBurst(obj.x, obj.y, 0x68d391);
+        
         // Floating points text with combo info
         let scoreText = `+${points}`;
         let scoreColor = '#68d391';
@@ -1671,6 +1695,9 @@ MainScene.prototype.handleClick = function(obj) {
         
         // Wrong sound placeholder
         this.playSound('wrong');
+        
+        // Screen shake on wrong click
+        this.cameras.main.shake(200, 0.01);
         
         this.updateUI();
     }
@@ -1972,25 +1999,33 @@ MainScene.prototype.showContinueButton = function(overlay, text) {
 // ============================================================
 
 MainScene.prototype.nextDay = function() {
-    this.currentDay++;
     this.dayRetries = 0;
     this.perfectDay = true;
     
-    if (this.currentDay > this.maxDays) {
+    // Update progress dots for completed day
+    this.progressDots.forEach((dot, i) => {
+        if (i < this.currentDay) {
+            dot.setFillStyle(0xed8936);
+        }
+    });
+    
+    // Check if we just completed Day 7
+    if (this.currentDay === this.maxDays) {
         this.showEnding();
     } else {
-        // Update progress dots
-        this.progressDots.forEach((dot, i) => {
-            if (i < this.currentDay) {
-                dot.setFillStyle(0xed8936);
-            }
-        });
+        // Move to next day
+        this.currentDay++;
         // Show dramatic story interlude between days
         this.showStoryInterlude();
     }
 };
 
 MainScene.prototype.showStoryInterlude = function() {
+    // Add glitch effect for Day 7
+    if (this.currentDay === 7) {
+        this.applyDay7GlitchEffect();
+    }
+    
     // Black screen with story text
     const overlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0)
         .setDepth(600);
@@ -2187,8 +2222,8 @@ MainScene.prototype.showEnding = function() {
     // Stop all sounds
     if (this.music) this.music.stop();
     
-    // Show congratulations popup first
-    this.showCongratulations();
+    // Show dramatic victory screen
+    this.showVictoryScreen();
 };
 
 MainScene.prototype.showCongratulations = function() {
@@ -2944,6 +2979,353 @@ CreditsScene.prototype.create = function() {
     returnBtn.on('pointerdown', () => {
         this.scene.start('TitleScene');
     });
+};
+
+// ============================================================
+// PARTICLE BURST - Celebratory effect on correct finds
+// ============================================================
+
+MainScene.prototype.createParticleBurst = function(x, y, color) {
+    const particleCount = 15;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const angle = (Math.PI * 2 * i) / particleCount;
+        const speed = 100 + Math.random() * 100;
+        
+        const particle = this.add.circle(x, y, 3 + Math.random() * 4, color)
+            .setAlpha(0.8);
+        
+        this.tweens.add({
+            targets: particle,
+            x: x + Math.cos(angle) * speed,
+            y: y + Math.sin(angle) * speed,
+            alpha: 0,
+            scale: 0,
+            duration: 600 + Math.random() * 400,
+            ease: 'Power2',
+            onComplete: () => particle.destroy()
+        });
+    }
+};
+
+// ============================================================
+// DAY 7 GLITCH EFFECT - Dramatic visual distortion
+// ============================================================
+
+MainScene.prototype.applyDay7GlitchEffect = function() {
+    // Chromatic aberration simulation
+    const glitchDuration = 2000;
+    
+    // Red glitch layer
+    const redGlitch = this.add.rectangle(700, 450, 1400, 900, 0xff0000, 0.1)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setDepth(500);
+    
+    this.tweens.add({
+        targets: redGlitch,
+        x: 705,
+        alpha: { from: 0.1, to: 0 },
+        duration: glitchDuration,
+        yoyo: true,
+        repeat: 2,
+        onComplete: () => redGlitch.destroy()
+    });
+    
+    // Blue glitch layer
+    const blueGlitch = this.add.rectangle(700, 450, 1400, 900, 0x0000ff, 0.1)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setDepth(500);
+    
+    this.tweens.add({
+        targets: blueGlitch,
+        x: 695,
+        alpha: { from: 0.1, to: 0 },
+        duration: glitchDuration,
+        yoyo: true,
+        repeat: 2,
+        onComplete: () => blueGlitch.destroy()
+    });
+    
+    // Screen distortion
+    this.cameras.main.shake(300, 0.005);
+    
+    // Static noise effect
+    const noiseInterval = this.time.addEvent({
+        delay: 50,
+        repeat: 40,
+        callback: () => {
+            const noise = this.add.rectangle(
+                Math.random() * 1400,
+                Math.random() * 900,
+                Math.random() * 200 + 50,
+                Math.random() * 100 + 20,
+                0xffffff,
+                Math.random() * 0.3
+            ).setDepth(500);
+            
+            this.time.delayedCall(100, () => noise.destroy());
+        }
+    });
+};
+
+// ============================================================
+// DRAMATIC VICTORY SCREEN - After Day 7 completion
+// ============================================================
+
+MainScene.prototype.showVictoryScreen = function() {
+    // Pause game and unlock special achievement
+    this.isPaused = true;
+    this.unlockAchievement(ACHIEVEMENTS.ESCAPED);
+    
+    // 1. Fade room to black
+    this.cameras.main.fadeOut(1000, 0, 0, 0);
+    
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+        // Create particle explosion effect (exploding clock)
+        this.createTimeParticleExplosion();
+        
+        // 2. Dark overlay background
+        const overlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0.95)
+            .setDepth(900);
+        
+        // 3. Big glowing title "THE LOOP IS BROKEN"
+        const title = this.add.text(700, 200, 'THE LOOP IS BROKEN', {
+            font: 'bold 72px monospace',
+            fill: '#ffd700',
+            stroke: '#ff6b35',
+            strokeThickness: 8,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(901).setAlpha(0);
+        
+        // Glow effect on title
+        this.tweens.add({
+            targets: title,
+            alpha: 1,
+            scale: 1.05,
+            duration: 1500,
+            ease: 'Power2',
+            yoyo: true,
+            repeat: -1
+        });
+        
+        // Play victory sound
+        this.time.delayedCall(300, () => {
+            this.playSound('dayComplete');
+        });
+        
+        // 4. Story text (typing effect)
+        const storyText = "Day after day, memory faded.\nBut you remembered the truth.\nThe room was your prison of regret.\nNow, time moves forward.";
+        
+        const story = this.add.text(700, 350, '', {
+            font: '28px monospace',
+            fill: '#cbd5e0',
+            align: 'center',
+            lineSpacing: 12,
+            wordWrap: { width: 1000 }
+        }).setOrigin(0.5).setDepth(901);
+        
+        // Type out story text
+        let charIndex = 0;
+        const typeInterval = this.time.addEvent({
+            delay: 50,
+            repeat: storyText.length - 1,
+            callback: () => {
+                story.text += storyText[charIndex];
+                charIndex++;
+            }
+        });
+        
+        // 5. Show stats after story completes
+        this.time.delayedCall(storyText.length * 50 + 1000, () => {
+            this.showVictoryStats(overlay);
+        });
+    });
+};
+
+MainScene.prototype.showVictoryStats = function(overlay) {
+    // Calculate stats
+    const totalAchievements = Object.keys(ACHIEVEMENTS).length;
+    const unlockedCount = GameData.data.achievements.length;
+    const perfectDays = 7 - this.totalRetries;
+    const playTime = Math.floor((Date.now() - this.gameStartTime) / 1000);
+    const minutes = Math.floor(playTime / 60);
+    const seconds = playTime % 60;
+    
+    // Stats container
+    const statsBox = this.add.rectangle(700, 550, 600, 200, 0x1a202c, 0.9)
+        .setStrokeStyle(3, 0xed8936)
+        .setDepth(901)
+        .setAlpha(0);
+    
+    const statsTitle = this.add.text(700, 470, '═══ YOUR JOURNEY ═══', {
+        font: 'bold 24px monospace',
+        fill: '#ed8936'
+    }).setOrigin(0.5).setDepth(902).setAlpha(0);
+    
+    const statsText = this.add.text(700, 550, 
+        `Final Score: ${this.score.toLocaleString()}\n` +
+        `Achievements: ${unlockedCount}/${totalAchievements} Unlocked\n` +
+        `Perfect Days: ${perfectDays}/7\n` +
+        `Time Played: ${minutes}m ${seconds}s`, {
+        font: '22px monospace',
+        fill: '#ffffff',
+        align: 'center',
+        lineSpacing: 8
+    }).setOrigin(0.5).setDepth(902).setAlpha(0);
+    
+    // Fade in stats
+    this.tweens.add({
+        targets: [statsBox, statsTitle, statsText],
+        alpha: 1,
+        duration: 800,
+        ease: 'Power2'
+    });
+    
+    // 7. Show buttons
+    this.time.delayedCall(1200, () => {
+        this.createVictoryButtons(overlay);
+    });
+};
+
+MainScene.prototype.createVictoryButtons = function(overlay) {
+    const buttonY = 720;
+    const buttonData = [
+        { text: '↻ REPLAY', x: 400, color: 0x68d391, action: 'replay' },
+        { text: '🏆 ACHIEVEMENTS', x: 700, color: 0xffd700, action: 'achievements' },
+        { text: '← MAIN MENU', x: 1000, color: 0x4299e1, action: 'menu' }
+    ];
+    
+    buttonData.forEach(data => {
+        const btn = this.add.rectangle(data.x, buttonY, 260, 60, data.color)
+            .setDepth(902)
+            .setAlpha(0)
+            .setInteractive({ useHandCursor: true });
+        
+        const btnText = this.add.text(data.x, buttonY, data.text, {
+            font: 'bold 22px monospace',
+            fill: '#000000'
+        }).setOrigin(0.5).setDepth(903).setAlpha(0);
+        
+        // Fade in buttons
+        this.tweens.add({
+            targets: [btn, btnText],
+            alpha: 1,
+            duration: 600,
+            delay: 200 * buttonData.indexOf(data),
+            ease: 'Back.easeOut'
+        });
+        
+        // Hover effects
+        btn.on('pointerover', () => {
+            this.tweens.add({
+                targets: [btn, btnText],
+                scale: 1.1,
+                duration: 200
+            });
+            this.playSound('click');
+        });
+        
+        btn.on('pointerout', () => {
+            this.tweens.add({
+                targets: [btn, btnText],
+                scale: 1,
+                duration: 200
+            });
+        });
+        
+        // Button actions
+        btn.on('pointerup', () => {
+            this.playSound('click');
+            
+            if (data.action === 'replay') {
+                // Reset game and start from Day 1
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.cameras.main.once('camerafadeoutcomplete', () => {
+                    this.scene.restart();
+                });
+            } else if (data.action === 'achievements') {
+                // Go to achievements/credits scene
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.cameras.main.once('camerafadeoutcomplete', () => {
+                    this.scene.start('CreditsScene');
+                });
+            } else if (data.action === 'menu') {
+                // Return to title screen
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.cameras.main.once('camerafadeoutcomplete', () => {
+                    this.scene.start('TitleScene');
+                });
+            }
+        });
+    });
+};
+
+MainScene.prototype.createTimeParticleExplosion = function() {
+    // Create exploding clock particle effect
+    const centerX = 700;
+    const centerY = 450;
+    
+    // Clock face particles
+    for (let i = 0; i < 60; i++) {
+        const angle = (i / 60) * Math.PI * 2;
+        const distance = 50 + Math.random() * 100;
+        const particle = this.add.circle(centerX, centerY, 3 + Math.random() * 5, 0xffd700, 0.8)
+            .setDepth(850);
+        
+        this.tweens.add({
+            targets: particle,
+            x: centerX + Math.cos(angle) * (distance + Math.random() * 300),
+            y: centerY + Math.sin(angle) * (distance + Math.random() * 300),
+            alpha: 0,
+            duration: 1000 + Math.random() * 1000,
+            ease: 'Cubic.easeOut',
+            onComplete: () => particle.destroy()
+        });
+    }
+    
+    // Clock hands explosion
+    for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const hand = this.add.rectangle(centerX, centerY, 4, 50, 0xff6b35)
+            .setOrigin(0.5, 1)
+            .setRotation(angle)
+            .setDepth(851);
+        
+        this.tweens.add({
+            targets: hand,
+            x: centerX + Math.cos(angle) * 400,
+            y: centerY + Math.sin(angle) * 400,
+            rotation: angle + Math.PI * 4,
+            alpha: 0,
+            duration: 1500,
+            ease: 'Power2.easeOut',
+            onComplete: () => hand.destroy()
+        });
+    }
+    
+    // Shockwave rings
+    for (let i = 0; i < 3; i++) {
+        const ring = this.add.circle(centerX, centerY, 10, 0xed8936, 0)
+            .setStrokeStyle(4, 0xffd700)
+            .setDepth(849);
+        
+        this.tweens.add({
+            targets: ring,
+            radius: 500,
+            alpha: 0.6,
+            duration: 1000 + i * 200,
+            ease: 'Cubic.easeOut',
+            onComplete: () => ring.destroy()
+        });
+        
+        this.time.delayedCall(i * 200, () => {
+            this.tweens.add({
+                targets: ring,
+                alpha: 0,
+                duration: 800
+            });
+        });
+    }
 };
 
 // ============================================================
