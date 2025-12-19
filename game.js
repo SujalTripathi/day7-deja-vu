@@ -1517,8 +1517,8 @@ MainScene.prototype.applyDayChanges = function() {
             obj.setFillStyle(state.color);
             obj.setAlpha(state.alpha);
             obj.setScale(state.scale || 1);
+            obj.setAngle(state.angle || 0);
         }
-        obj.setAngle(state.angle || 0);
     });
 };
 
@@ -2236,10 +2236,13 @@ MainScene.prototype.onTimeUp = function() {
 // ============================================================
 
 MainScene.prototype.showEnding = function() {
+    console.log('=== SHOW ENDING CALLED ===');
+    
     // Stop all sounds
     if (this.music) this.music.stop();
     
     // Show dramatic victory screen
+    console.log('Calling showVictoryScreen...');
     this.showVictoryScreen();
 };
 
@@ -3108,13 +3111,24 @@ MainScene.prototype.showVictoryScreen = function() {
     // Use delayedCall instead of camera callback for reliability
     this.time.delayedCall(1100, () => {
         console.log('Victory Screen: Fade complete, showing content');
+        console.log('Creating overlay and particles...');
         
         // Create particle explosion effect (exploding clock)
         this.createTimeParticleExplosion();
         
-        // 2. Dark overlay background - DEPTH 1200+
-        const overlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0.98)
+        // 2. BRIGHT TEST overlay background - DEPTH 1200+ (using magenta to test)
+        const overlay = this.add.rectangle(700, 450, 1400, 900, 0xff00ff, 1.0)
             .setDepth(1200);
+        
+        console.log('Overlay created:', overlay);
+        
+        // TEST TEXT to verify rendering
+        const testText = this.add.text(700, 100, 'VICTORY SCREEN ACTIVE', {
+            font: 'bold 40px Arial',
+            fill: '#00ff00',
+            backgroundColor: '#000000'
+        }).setOrigin(0.5).setDepth(1210);
+        console.log('Test text created:', testText);
         
         // 3. Big glowing title "THE LOOP IS BROKEN" - DEPTH 1201+
         const title = this.add.text(700, 200, 'THE LOOP IS BROKEN', {
