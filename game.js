@@ -2106,6 +2106,8 @@ MainScene.prototype.showStoryInterlude = function() {
     // Click to continue
     overlay.setInteractive();
     overlay.once('pointerdown', () => {
+        console.log(`Story Interlude: Clicked continue for Day ${this.currentDay}`);
+        
         this.tweens.add({
             targets: [overlay, dayNum, story, continueText],
             alpha: 0,
@@ -2119,17 +2121,22 @@ MainScene.prototype.showStoryInterlude = function() {
                 // Camera fade transition
                 this.cameras.main.fadeOut(400, 0, 0, 0);
                 
-                this.cameras.main.once('camerafadeoutcomplete', () => {
-                    // Reset objects to base state
+                // Use delayedCall instead of unreliable camera callback
+                this.time.delayedCall(450, () => {
+                    console.log(`Story Interlude: Fade complete, starting Day ${this.currentDay}`);
+                    
+                    // Reset objects to base state with safety check
                     this.objects.forEach(obj => {
                         obj.found = false;
                         obj.isDifference = false;
                         obj.stateIndex = 0;
                         const state = obj.data.states[0];
-                        obj.setFillStyle(state.color);
-                        obj.setAlpha(state.alpha);
-                        obj.setScale(state.scale || 1);
-                        obj.setAngle(state.angle || 0);
+                        if (state) {
+                            obj.setFillStyle(state.color);
+                            obj.setAlpha(state.alpha);
+                            obj.setScale(state.scale || 1);
+                            obj.setAngle(state.angle || 0);
+                        }
                     });
                     
                     this.cameras.main.fadeIn(400, 0, 0, 0);
