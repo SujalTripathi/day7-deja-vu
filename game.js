@@ -2,7 +2,11 @@
 // DAY 7: DEJA VU - A Time Loop Mystery Game
 // Theme: "The Changing of Time"
 // Built for Codédex Game Jam December 2025
+// VERSION: 2.0 - Premium Features Update
 // ============================================================
+
+console.log('🎮 Day 7: Deja Vu - VERSION 2.0 LOADED');
+console.log('✅ Features: Memory Fragments, Day 7 Glitch, Combo Display, UI Decay, Lifetime Stats');
 
 const config = {
     type: Phaser.AUTO,
@@ -1474,6 +1478,7 @@ MainScene.prototype.applyUIDecay = function() {
     };
     
     const alpha = alphaValues[this.currentDay] || 1.0;
+    console.log(`🎨 UI Decay applied - Day ${this.currentDay}: Alpha ${alpha}${this.currentDay === 7 ? ' + RED TINT' : ''}`);
     
     // Apply alpha to UI elements
     if (this.dayText) this.dayText.setAlpha(alpha);
@@ -1745,6 +1750,8 @@ MainScene.prototype.handleClick = function(obj) {
         
         // Update combo display with scale animation and color
         if (this.combo >= 2) {
+            console.log(`🔥 COMBO x${this.combo} - Displaying at center-bottom`);
+            
             // Clear existing fade timer
             if (this.comboFadeTimer) {
                 this.comboFadeTimer.remove();
@@ -3172,7 +3179,10 @@ MainScene.prototype.showMemoryFragment = function(obj) {
     // Find previous state for this object
     const prevState = this.previousObjectStates.find(state => state.name === obj.data.name);
     
-    if (!prevState) return; // No previous state (Day 1)
+    if (!prevState) {
+        console.log('💭 No memory fragment (Day 1 or no previous state)');
+        return; // No previous state (Day 1)
+    }
     
     // Verify current state exists
     const currentState = obj.data.states[obj.stateIndex];
@@ -3180,6 +3190,8 @@ MainScene.prototype.showMemoryFragment = function(obj) {
         console.error(`Invalid stateIndex ${obj.stateIndex} for object ${obj.data.name}`);
         return;
     }
+    
+    console.log(`👻 Showing memory fragment for ${obj.data.name} at (${prevState.x}, ${prevState.y})`);
     
     // Create ghost rectangle at PREVIOUS position
     const ghost = this.add.rectangle(
@@ -3320,7 +3332,8 @@ MainScene.prototype.createParticleBurst = function(x, y, color) {
 // ============================================================
 
 MainScene.prototype.applyDay7StartGlitchEffect = function(overlay, dayNum, story) {
-    console.log('Applying Day 7 START glitch effect');
+    console.log('⚡ APPLYING DAY 7 START GLITCH EFFECT ⚡');
+    console.log('Creating white glitch bars and red flash...');
     
     // Create glitch bars (vertical white lines)
     const glitchPositions = [200, 500, 1000, 1200];
@@ -3623,6 +3636,13 @@ MainScene.prototype.showVictoryStats = function(overlay) {
     const seconds = playTime % 60;
     
     // Update lifetime stats in GameData
+    console.log('📊 Updating lifetime stats:', {
+        totalTime: playTime,
+        score: this.score,
+        difficulty: this.difficulty,
+        differencesFound: this.totalDifferencesFound,
+        perfectDays: perfectDays
+    });
     GameData.updateLifetimeStats({
         totalTime: playTime,
         score: this.score,
