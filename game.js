@@ -1567,15 +1567,22 @@ MainScene.prototype.startDay = function() {
 // ============================================================
 
 MainScene.prototype.storePreviousStates = function() {
-    this.previousObjectStates = this.objects.map(obj => ({
-        name: obj.data.name,
-        x: obj.x,
-        y: obj.y,
-        stateIndex: obj.stateIndex,
-        color: obj.data.states[obj.stateIndex].color,
-        scale: obj.data.states[obj.stateIndex].scale || 1,
-        angle: obj.data.states[obj.stateIndex].angle || 0
-    }));
+    this.previousObjectStates = this.objects.map(obj => {
+        const state = obj.data.states[obj.stateIndex];
+        if (!state) {
+            console.error(`Invalid stateIndex ${obj.stateIndex} for object ${obj.data.name}`);
+            return null;
+        }
+        return {
+            name: obj.data.name,
+            x: obj.x,
+            y: obj.y,
+            stateIndex: obj.stateIndex,
+            color: state.color,
+            scale: state.scale || 1,
+            angle: state.angle || 0
+        };
+    }).filter(state => state !== null);
 };
 
 // ============================================================
@@ -1600,7 +1607,7 @@ MainScene.prototype.applyDayChanges = function() {
         if (changedObjects.includes(obj.data.name)) {
             // This object is a difference today
             obj.isDifference = true;
-            obj.stateIndex = this.currentDay;
+            obj.stateIndex = this.currentDay - 1; // Use 0-based index (Day 1 = index 0, Day 7 = index 6)
             
             // Add SUBTLE pulse to differences (helps players find them)
             this.time.delayedCall(2000, () => {
@@ -1663,14 +1670,17 @@ MainScene.prototype.handleClick = function(obj) {
         // Particle explosion
         this.successParticles.emitParticleAt(obj.x, obj.y);
         
-        // Scale bounce
-        this.tweens.add({
-            targets: obj,
-            scale: (obj.data.states[obj.stateIndex].scale || 1) * 1.4,
-            duration: 200,
-            yoyo: true,
-            ease: 'Elastic.easeOut'
-        });
+        // Scale bounce (with safety check)
+        const currentObjState = obj.data.states[obj.stateIndex];
+        if (currentObjState) {
+            this.tweens.add({
+                targets: obj,
+                scale: (currentObjState.scale || 1) * 1.4,
+                duration: 200,
+                yoyo: true,
+                ease: 'Elastic.easeOut'
+            });
+        }
         
         // Green checkmark
         const check = this.add.text(obj.x, obj.y, '✓', {
@@ -3163,6 +3173,13 @@ MainScene.prototype.showMemoryFragment = function(obj) {
     const prevState = this.previousObjectStates.find(state => state.name === obj.data.name);
     
     if (!prevState) return; // No previous state (Day 1)
+    
+    // Verify current state exists
+    const currentState = obj.data.states[obj.stateIndex];
+    if (!currentState) {
+        console.error(`Invalid stateIndex ${obj.stateIndex} for object ${obj.data.name}`);
+        return;
+    }
     
     // Create ghost rectangle at PREVIOUS position
     const ghost = this.add.rectangle(
