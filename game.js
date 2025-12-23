@@ -36,6 +36,23 @@ const GameData = {
         const saved = localStorage.getItem('day7DejaVuData');
         if (saved) {
             this.data = JSON.parse(saved);
+            
+            // Ensure lifetime stats exist (backward compatibility)
+            if (this.data.totalGamesCompleted === undefined) {
+                this.data.totalGamesCompleted = this.data.gamesCompleted || 0;
+            }
+            if (this.data.bestTimeAnyMode === undefined) {
+                this.data.bestTimeAnyMode = Infinity;
+            }
+            if (this.data.bestScorePerDifficulty === undefined) {
+                this.data.bestScorePerDifficulty = { easy: 0, normal: 0, hard: 0 };
+            }
+            if (this.data.totalDifferencesFound === undefined) {
+                this.data.totalDifferencesFound = 0;
+            }
+            if (this.data.perfectDaysUnlocked === undefined) {
+                this.data.perfectDaysUnlocked = 0;
+            }
         } else {
             this.data = {
                 hasPlayedBefore: false,
@@ -49,7 +66,13 @@ const GameData = {
                     screenShakeEnabled: true
                 },
                 totalPlaytime: 0,
-                gamesCompleted: 0
+                gamesCompleted: 0,
+                // Lifetime stats tracking
+                totalGamesCompleted: 0,
+                bestTimeAnyMode: Infinity,
+                bestScorePerDifficulty: { easy: 0, normal: 0, hard: 0 },
+                totalDifferencesFound: 0,
+                perfectDaysUnlocked: 0
             };
        
     
@@ -84,6 +107,29 @@ const GameData = {
             this.data.highScores[difficulty] = score;
             this.save();
         }
+    },
+    
+    updateLifetimeStats: function(stats) {
+        // Increment total games completed
+        this.data.totalGamesCompleted++;
+        
+        // Update best time (in seconds)
+        if (stats.totalTime < this.data.bestTimeAnyMode) {
+            this.data.bestTimeAnyMode = stats.totalTime;
+        }
+        
+        // Update best score per difficulty
+        if (stats.score > this.data.bestScorePerDifficulty[stats.difficulty]) {
+            this.data.bestScorePerDifficulty[stats.difficulty] = stats.score;
+        }
+        
+        // Add to total differences found
+        this.data.totalDifferencesFound += stats.differencesFound;
+        
+        // Update perfect days unlocked
+        this.data.perfectDaysUnlocked += stats.perfectDays;
+        
+        this.save();
     }
 };
 
@@ -800,9 +846,16 @@ MainScene.prototype.create = function() {
     this.totalRetries = 0;
     this.gameStartTime = Date.now();
     this.perfectDay = true;
+    this.comboFadeTimer = null; // Track combo fade timeout
+    this.totalDifferencesFound = 0; // Track all differences found this run
+    this.perfectDaysCount = 0; // Track perfect days this run
     
     // Required differences per day (from difficulty)
     this.requiredPerDay = settings.requiredPerDay;
+    
+    // Memory fragments system - track previous object states
+    this.previousObjectStates = [];
+    this.memoryFragments = []; // Active memory ghost visuals
     
     // === OBJECT DATA (8 objects with detailed states) ===
     this.objectData = [
@@ -1179,13 +1232,13 @@ MainScene.prototype.createUI = function() {
         strokeThickness: 5
     }).setOrigin(1, 0);
     
-    // Combo counter (appears when combo > 1)
-    this.comboText = this.add.text(1300, 100, '', {
-        font: 'bold 32px monospace',
-        fill: '#ff6347',
+    // Combo display at center-bottom (hidden by default)
+    this.comboText = this.add.text(700, 800, '', {
+        font: 'bold 38px monospace',
+        fill: '#ffd700',
         stroke: '#000000',
-        strokeThickness: 4
-    }).setOrigin(1, 0).setAlpha(0);
+        strokeThickness: 5
+    }).setOrigin(0.5).setAlpha(0).setDepth(55);
     
     // Found counter (bottom-center) - Clear and visible
     this.foundText = this.add.text(700, 850, '🔍 FIND: 0/2', {
@@ -1405,6 +1458,41 @@ MainScene.prototype.showDayStartInstructions = function() {
 };
 
 // ============================================================
+// APPLY UI DECAY - Progressive alpha reduction per day
+// ============================================================
+
+MainScene.prototype.applyUIDecay = function() {
+    // Alpha values per day
+    const alphaValues = {
+        1: 1.0,
+        2: 0.95,
+        3: 0.9,
+        4: 0.85,
+        5: 0.8,
+        6: 0.75,
+        7: 0.7
+    };
+    
+    const alpha = alphaValues[this.currentDay] || 1.0;
+    
+    // Apply alpha to UI elements
+    if (this.dayText) this.dayText.setAlpha(alpha);
+    if (this.scoreText) this.scoreText.setAlpha(alpha);
+    if (this.foundText) this.foundText.setAlpha(alpha);
+    if (this.timerBar) this.timerBar.setAlpha(alpha);
+    if (this.timerBarBg) this.timerBarBg.setAlpha(alpha);
+    if (this.timerText) this.timerText.setAlpha(alpha);
+    
+    // Day 7: Add red tint to UI elements
+    if (this.currentDay === 7) {
+        if (this.dayText) this.dayText.setTint(0xff6b6b);
+        if (this.scoreText) this.scoreText.setTint(0xff6b6b);
+        if (this.foundText) this.foundText.setTint(0xff6b6b);
+        if (this.timerText) this.timerText.setTint(0xff6b6b);
+    }
+};
+
+// ============================================================
 // START DAY - Initialize day state
 // ============================================================
 
@@ -1412,6 +1500,9 @@ MainScene.prototype.startDay = function() {
     this.foundThisDay = 0;
     this.applyDayChanges();
     this.updateUI();
+    
+    // Apply UI decay effect
+    this.applyUIDecay();
     
     // Camera zoom in
     this.cameras.main.setZoom(1.05);
@@ -1472,10 +1563,31 @@ MainScene.prototype.startDay = function() {
 };
 
 // ============================================================
+// STORE PREVIOUS STATES - Save positions before changing day
+// ============================================================
+
+MainScene.prototype.storePreviousStates = function() {
+    this.previousObjectStates = this.objects.map(obj => ({
+        name: obj.data.name,
+        x: obj.x,
+        y: obj.y,
+        stateIndex: obj.stateIndex,
+        color: obj.data.states[obj.stateIndex].color,
+        scale: obj.data.states[obj.stateIndex].scale || 1,
+        angle: obj.data.states[obj.stateIndex].angle || 0
+    }));
+};
+
+// ============================================================
 // APPLY DAY CHANGES - Set object states
 // ============================================================
 
 MainScene.prototype.applyDayChanges = function() {
+    // Store previous state before applying changes
+    if (this.currentDay > 1) {
+        this.storePreviousStates();
+    }
+    
     const changedObjects = this.dayChanges[this.currentDay];
     
     this.objects.forEach(obj => {
@@ -1533,6 +1645,7 @@ MainScene.prototype.handleClick = function(obj) {
         // ✓ CORRECT!
         obj.found = true;
         this.foundThisDay++;
+        this.totalDifferencesFound++; // Track lifetime stat
         
         // Combo system
         this.combo++;
@@ -1585,8 +1698,8 @@ MainScene.prototype.handleClick = function(obj) {
         // Particle burst effect
         this.createParticleBurst(obj.x, obj.y, 0x68d391);
         
-        // Particle burst effect
-        this.createParticleBurst(obj.x, obj.y, 0x68d391);
+        // Show memory fragment (ghost of previous state)
+        this.showMemoryFragment(obj);
         
         // Floating points text with combo info
         let scoreText = `+${points}`;
@@ -1620,16 +1733,44 @@ MainScene.prototype.handleClick = function(obj) {
             onComplete: () => plus.destroy()
         });
         
-        // Update combo display
-        if (this.combo > 1) {
-            this.comboText.setText(`${this.combo}x COMBO`);
+        // Update combo display with scale animation and color
+        if (this.combo >= 2) {
+            // Clear existing fade timer
+            if (this.comboFadeTimer) {
+                this.comboFadeTimer.remove();
+                this.comboFadeTimer = null;
+            }
+            
+            // Update text
+            this.comboText.setText(`🔥 COMBO x${this.combo}`);
+            
+            // Determine color based on combo level
+            let comboColor = '#ffd700'; // Gold (2-3x)
+            if (this.combo >= 6) {
+                comboColor = '#ff1493'; // Pink/intense (6+)
+            } else if (this.combo >= 4) {
+                comboColor = '#ff6347'; // Red/excited (4-5x)
+            }
+            this.comboText.setColor(comboColor);
+            
+            // Scale animation: 1 → 1.3 → 1
+            this.comboText.setAlpha(1);
             this.tweens.add({
                 targets: this.comboText,
-                alpha: 1,
                 scale: 1.3,
-                duration: 200,
+                duration: 100,
                 yoyo: true,
                 ease: 'Back.easeOut'
+            });
+            
+            // Set fade out timer (1 second)
+            this.comboFadeTimer = this.time.delayedCall(1000, () => {
+                this.tweens.add({
+                    targets: this.comboText,
+                    alpha: 0,
+                    duration: 300
+                });
+                this.comboFadeTimer = null;
             });
         }
         
@@ -1668,6 +1809,12 @@ MainScene.prototype.handleClick = function(obj) {
             });
         }
         this.combo = 0;
+        
+        // Clear combo fade timer and hide combo text
+        if (this.comboFadeTimer) {
+            this.comboFadeTimer.remove();
+            this.comboFadeTimer = null;
+        }
         this.comboText.setAlpha(0);
         
         // Red X flash
@@ -1834,6 +1981,11 @@ MainScene.prototype.completeDay = function() {
     
     // Check achievements
     this.checkDayAchievements();
+    
+    // Track perfect day
+    if (this.perfectDay && this.wrongClicks === 0) {
+        this.perfectDaysCount++;
+    }
     
     // Day completion title
     const titleText = this.add.text(700, 250, `DAY ${this.currentDay} SURVIVED`, {
@@ -2031,11 +2183,6 @@ MainScene.prototype.nextDay = function() {
 };
 
 MainScene.prototype.showStoryInterlude = function() {
-    // Add glitch effect for Day 7
-    if (this.currentDay === 7) {
-        this.applyDay7GlitchEffect();
-    }
-    
     // Black screen with story text
     const overlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0)
         .setDepth(600);
@@ -2064,6 +2211,12 @@ MainScene.prototype.showStoryInterlude = function() {
         stroke: '#000000',
         strokeThickness: 4
     }).setOrigin(0.5).setDepth(601).setAlpha(0);
+    
+    // Apply Day 7 glitch effect BEFORE showing text
+    if (this.currentDay === 7) {
+        this.applyDay7StartGlitchEffect(overlay, dayNum, story);
+        return; // Early return, glitch effect will handle the rest
+    }
     
     // Animate day number
     this.tweens.add({
@@ -3002,6 +3155,123 @@ CreditsScene.prototype.create = function() {
 };
 
 // ============================================================
+// MEMORY FRAGMENT - Show ghost of previous state
+// ============================================================
+
+MainScene.prototype.showMemoryFragment = function(obj) {
+    // Find previous state for this object
+    const prevState = this.previousObjectStates.find(state => state.name === obj.data.name);
+    
+    if (!prevState) return; // No previous state (Day 1)
+    
+    // Create ghost rectangle at PREVIOUS position
+    const ghost = this.add.rectangle(
+        prevState.x,
+        prevState.y,
+        obj.width * prevState.scale,
+        obj.height * prevState.scale,
+        0x68d391, // Green
+        0.3 // Alpha 0.3
+    ).setDepth(49)
+     .setAngle(prevState.angle)
+     .setStrokeStyle(3, 0x68d391, 1); // Dashed effect simulation
+    
+    // Make stroke dashed-looking by adding multiple thin rectangles
+    const dashCount = 8;
+    const dashGraphics = this.add.graphics().setDepth(49);
+    dashGraphics.lineStyle(3, 0x68d391, 1);
+    
+    const width = obj.width * prevState.scale;
+    const height = obj.height * prevState.scale;
+    
+    // Draw dashed outline
+    for (let i = 0; i < dashCount; i++) {
+        const dashLength = width / dashCount;
+        // Top edge
+        if (i % 2 === 0) {
+            dashGraphics.lineBetween(
+                prevState.x - width/2 + i * dashLength,
+                prevState.y - height/2,
+                prevState.x - width/2 + (i + 1) * dashLength,
+                prevState.y - height/2
+            );
+        }
+        // Bottom edge
+        if (i % 2 === 0) {
+            dashGraphics.lineBetween(
+                prevState.x - width/2 + i * dashLength,
+                prevState.y + height/2,
+                prevState.x - width/2 + (i + 1) * dashLength,
+                prevState.y + height/2
+            );
+        }
+    }
+    
+    for (let i = 0; i < dashCount; i++) {
+        const dashLength = height / dashCount;
+        // Left edge
+        if (i % 2 === 0) {
+            dashGraphics.lineBetween(
+                prevState.x - width/2,
+                prevState.y - height/2 + i * dashLength,
+                prevState.x - width/2,
+                prevState.y - height/2 + (i + 1) * dashLength
+            );
+        }
+        // Right edge
+        if (i % 2 === 0) {
+            dashGraphics.lineBetween(
+                prevState.x + width/2,
+                prevState.y - height/2 + i * dashLength,
+                prevState.x + width/2,
+                prevState.y - height/2 + (i + 1) * dashLength
+            );
+        }
+    }
+    
+    dashGraphics.strokePath();
+    
+    // Memory label text
+    const memoryText = this.add.text(
+        prevState.x,
+        prevState.y - (obj.height * prevState.scale / 2) - 25,
+        `Memory: ${obj.data.name}`,
+        {
+            font: 'bold 18px monospace',
+            fill: '#68d391',
+            stroke: '#000000',
+            strokeThickness: 3,
+            backgroundColor: '#1a202c',
+            padding: { x: 8, y: 4 }
+        }
+    ).setOrigin(0.5).setDepth(50).setAlpha(0);
+    
+    // Fade in text
+    this.tweens.add({
+        targets: memoryText,
+        alpha: 1,
+        duration: 300
+    });
+    
+    // Hold for 2 seconds, then fade out
+    this.time.delayedCall(2000, () => {
+        this.tweens.add({
+            targets: [ghost, dashGraphics, memoryText],
+            alpha: 0,
+            duration: 800,
+            onComplete: () => {
+                ghost.destroy();
+                dashGraphics.destroy();
+                memoryText.destroy();
+            }
+        });
+    });
+    
+    // Track for cleanup
+    this.memoryFragments.push({ ghost, dashGraphics, memoryText });
+};
+
+// ============================================================
 // PARTICLE BURST - Celebratory effect on correct finds
 // ============================================================
 
@@ -3029,7 +3299,146 @@ MainScene.prototype.createParticleBurst = function(x, y, color) {
 };
 
 // ============================================================
-// DAY 7 GLITCH EFFECT - Dramatic visual distortion
+// DAY 7 START GLITCH EFFECT - Dramatic visual intro
+// ============================================================
+
+MainScene.prototype.applyDay7StartGlitchEffect = function(overlay, dayNum, story) {
+    console.log('Applying Day 7 START glitch effect');
+    
+    // Create glitch bars (vertical white lines)
+    const glitchPositions = [200, 500, 1000, 1200];
+    const glitchBars = [];
+    
+    glitchPositions.forEach((x, index) => {
+        const bar = this.add.rectangle(x, 450, 8, 0, 0xffffff, 0.9)
+            .setDepth(605)
+            .setOrigin(0.5, 0.5);
+        glitchBars.push(bar);
+        
+        // Animate: scaleY 0 → 1 → 0, repeat 3 times
+        this.time.delayedCall(index * 100, () => {
+            this.tweens.add({
+                targets: bar,
+                height: { from: 0, to: 900 },
+                duration: 150,
+                yoyo: true,
+                repeat: 2, // Total 3 times (initial + 2 repeats)
+                ease: 'Cubic.easeInOut',
+                onComplete: () => {
+                    bar.destroy();
+                }
+            });
+        });
+    });
+    
+    // Red flash overlay
+    const redFlash = this.add.rectangle(700, 450, 1400, 900, 0xff0000, 0)
+        .setDepth(604);
+    
+    this.time.delayedCall(300, () => {
+        this.tweens.add({
+            targets: redFlash,
+            alpha: 0.2,
+            duration: 100,
+            yoyo: true,
+            repeat: 0,
+            onComplete: () => {
+                redFlash.destroy();
+            }
+        });
+    });
+    
+    // Special Day 7 title with effect
+    const specialTitle = this.add.text(700, 300, 'DAY 7: THE FINAL LOOP', {
+        font: 'bold 72px monospace',
+        fill: '#ff0000',
+        stroke: '#000000',
+        strokeThickness: 8
+    }).setOrigin(0.5).setDepth(606).setAlpha(0);
+    
+    // Fade in the dramatic title
+    this.time.delayedCall(600, () => {
+        this.tweens.add({
+            targets: specialTitle,
+            alpha: 1,
+            scale: { from: 0.5, to: 1 },
+            duration: 800,
+            ease: 'Back.easeOut'
+        });
+        
+        // Play whoosh sound
+        this.playSound('whoosh');
+    });
+    
+    // Fade in story after title
+    this.time.delayedCall(1800, () => {
+        this.tweens.add({
+            targets: story,
+            alpha: 1,
+            duration: 1000
+        });
+    });
+    
+    // Continue prompt
+    const continueText = this.add.text(700, 750, 'Click to continue...', {
+        font: '24px monospace',
+        fill: '#a0aec0'
+    }).setOrigin(0.5).setDepth(601).setAlpha(0);
+    
+    this.tweens.add({
+        targets: continueText,
+        alpha: 1,
+        duration: 800,
+        delay: 3000,
+        yoyo: true,
+        repeat: -1
+    });
+    
+    // Click to continue
+    overlay.setInteractive();
+    overlay.once('pointerdown', () => {
+        console.log('Day 7 glitch: Clicked continue');
+        
+        this.tweens.add({
+            targets: [overlay, specialTitle, story, continueText],
+            alpha: 0,
+            duration: 600,
+            onComplete: () => {
+                overlay.destroy();
+                specialTitle.destroy();
+                story.destroy();
+                continueText.destroy();
+                
+                // Camera fade transition
+                this.cameras.main.fadeOut(400, 0, 0, 0);
+                
+                this.time.delayedCall(450, () => {
+                    console.log('Day 7: Starting gameplay');
+                    
+                    // Reset objects to base state
+                    this.objects.forEach(obj => {
+                        obj.found = false;
+                        obj.isDifference = false;
+                        obj.stateIndex = 0;
+                        const state = obj.data.states[0];
+                        if (state) {
+                            obj.setFillStyle(state.color);
+                            obj.setAlpha(state.alpha);
+                            obj.setScale(state.scale || 1);
+                            obj.setAngle(state.angle || 0);
+                        }
+                    });
+                    
+                    this.cameras.main.fadeIn(400, 0, 0, 0);
+                    this.startDay();
+                });
+            }
+        });
+    });
+};
+
+// ============================================================
+// DAY 7 GLITCH EFFECT - Dramatic visual distortion (old version, kept for compatibility)
 // ============================================================
 
 MainScene.prototype.applyDay7GlitchEffect = function() {
@@ -3188,39 +3597,69 @@ MainScene.prototype.showVictoryScreen = function() {
 MainScene.prototype.showVictoryStats = function(overlay) {
     console.log('Victory Stats: Displaying stats');
     
-    // Calculate stats
+    // Calculate stats for this run
     const totalAchievements = Object.keys(ACHIEVEMENTS).length;
     const unlockedCount = GameData.data.achievements.length;
-    const perfectDays = 7 - this.totalRetries;
+    const perfectDays = this.perfectDaysCount;
     const playTime = Math.floor((Date.now() - this.gameStartTime) / 1000);
     const minutes = Math.floor(playTime / 60);
     const seconds = playTime % 60;
     
+    // Update lifetime stats in GameData
+    GameData.updateLifetimeStats({
+        totalTime: playTime,
+        score: this.score,
+        difficulty: this.difficulty,
+        differencesFound: this.totalDifferencesFound,
+        perfectDays: perfectDays
+    });
+    
+    // Get lifetime stats
+    const lifetimeWins = GameData.data.totalGamesCompleted;
+    const bestTime = GameData.data.bestTimeAnyMode;
+    const bestMinutes = Math.floor(bestTime / 60);
+    const bestSeconds = bestTime % 60;
+    const totalDiffs = GameData.data.totalDifferencesFound;
+    
     // Stats container - DEPTH 1202+
-    const statsBox = this.add.rectangle(700, 550, 600, 200, 0x1a202c, 0.9)
+    const statsBox = this.add.rectangle(700, 550, 800, 280, 0x1a202c, 0.9)
         .setStrokeStyle(3, 0xed8936)
         .setDepth(1202)
         .setAlpha(0);
     
-    const statsTitle = this.add.text(700, 470, '═══ YOUR JOURNEY ═══', {
-        font: 'bold 24px monospace',
+    const statsTitle = this.add.text(700, 435, '═══ YOUR JOURNEY ═══', {
+        font: 'bold 28px monospace',
         fill: '#ed8936'
     }).setOrigin(0.5).setDepth(1203).setAlpha(0);
     
-    const statsText = this.add.text(700, 550, 
-        `Final Score: ${this.score.toLocaleString()}\n` +
-        `Achievements: ${unlockedCount}/${totalAchievements} Unlocked\n` +
-        `Perfect Days: ${perfectDays}/7\n` +
-        `Time Played: ${minutes}m ${seconds}s`, {
-        font: '22px monospace',
-        fill: '#ffffff',
+    // This run stats
+    const runStatsText = this.add.text(700, 500, 
+        `Stats This Run:\nScore ${this.score} | Time ${minutes}:${seconds.toString().padStart(2, '0')} | Perfect Days ${perfectDays}`, {
+        font: 'bold 20px monospace',
+        fill: '#68d391',
         align: 'center',
-        lineSpacing: 8
+        lineSpacing: 6
+    }).setOrigin(0.5).setDepth(1203).setAlpha(0);
+    
+    // Lifetime stats
+    const lifetimeStatsText = this.add.text(700, 590, 
+        `Lifetime:\n${lifetimeWins} Wins | Best Time ${bestMinutes}:${bestSeconds.toString().padStart(2, '0')} | ${totalDiffs.toLocaleString()} Total Differences`, {
+        font: 'bold 20px monospace',
+        fill: '#ffd700',
+        align: 'center',
+        lineSpacing: 6
+    }).setOrigin(0.5).setDepth(1203).setAlpha(0);
+    
+    // Achievement icons display
+    const achievementText = this.add.text(700, 660, 
+        `Achievements: ${unlockedCount}/${totalAchievements} Unlocked`, {
+        font: 'bold 18px monospace',
+        fill: '#cbd5e0'
     }).setOrigin(0.5).setDepth(1203).setAlpha(0);
     
     // Fade in stats
     this.tweens.add({
-        targets: [statsBox, statsTitle, statsText],
+        targets: [statsBox, statsTitle, runStatsText, lifetimeStatsText, achievementText],
         alpha: 1,
         duration: 800,
         ease: 'Power2'
