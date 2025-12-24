@@ -175,18 +175,110 @@ TitleScene.prototype.preload = function() {
 TitleScene.prototype.create = function() {
     // Unlock audio on first user interaction (browser requirement)
     this.audioUnlocked = false;
+    this.musicStarted = false;
+    
     this.input.once('pointerdown', () => {
         if (!this.audioUnlocked) {
             this.audioUnlocked = true;
-            // Resume audio context
+            // Resume audio context FIRST
             if (this.sound.context) {
                 this.sound.context.resume();
+            }
+            // THEN start music
+            if (!this.musicStarted) {
+                this.startMusic();
+                this.musicStarted = true;
             }
         }
     });
     
     // Background with gradient effect
     const bg = this.add.rectangle(700, 450, 1400, 900, 0x1a202c);
+    
+    // === LEFT PANEL: Day Timeline ===
+    const leftPanel = this.add.rectangle(150, 450, 250, 900, 0x1a202c, 0.6)
+        .setStrokeStyle(2, 0xed8936, 0.3)
+        .setDepth(1);
+    
+    // Day markers on left panel
+    for (let day = 1; day <= 7; day++) {
+        const y = 150 + (day - 1) * 100;
+        const dayCircle = this.add.circle(150, y, 20, day === 7 ? 0xed8936 : 0x4a5568, 1)
+            .setStrokeStyle(2, 0xffd700)
+            .setDepth(2);
+        
+        const dayLabel = this.add.text(150, y, `${day}`, {
+            font: 'bold 20px monospace',
+            fill: '#f7fafc'
+        }).setOrigin(0.5).setDepth(3);
+        
+        // Pulse animation for Day 7
+        if (day === 7) {
+            this.tweens.add({
+                targets: dayCircle,
+                scale: { from: 1, to: 1.2 },
+                alpha: { from: 1, to: 0.6 },
+                duration: 1500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        }
+    }
+    
+    // === RIGHT PANEL: Spinning Clock Visual ===
+    const rightPanel = this.add.rectangle(1250, 450, 250, 900, 0x1a202c, 0.6)
+        .setStrokeStyle(2, 0x68d391, 0.3)
+        .setDepth(1);
+    
+    // Clock centerpiece (golden circle)
+    const clockCircle = this.add.circle(1250, 280, 90, 0x1a202c, 1)
+        .setStrokeStyle(8, 0xffd700, 0.8)
+        .setDepth(3);
+    
+    // Clock ticks (12 hour markers)
+    for (let i = 0; i < 12; i++) {
+        const angle = (i * 30 - 90) * Math.PI / 180;
+        const x = 1250 + Math.cos(angle) * 70;
+        const y = 280 + Math.sin(angle) * 70;
+        this.add.circle(x, y, 4, 0xffd700, 0.6).setDepth(3);
+    }
+    
+    // Clock hands
+    const hourHand = this.add.rectangle(1250, 280, 8, 80, 0xffd700, 0.6)
+        .setOrigin(0.5, 1).setDepth(4);
+    const minuteHand = this.add.rectangle(1250, 280, 6, 120, 0xffd700, 0.8)
+        .setOrigin(0.5, 1).setDepth(4);
+    
+    // Rotate clock hands continuously
+    this.tweens.add({
+        targets: hourHand,
+        angle: 360,
+        duration: 20000,
+        repeat: -1,
+        ease: 'Linear'
+    });
+    
+    this.tweens.add({
+        targets: minuteHand,
+        angle: 360,
+        duration: 3000,
+        repeat: -1,
+        ease: 'Linear'
+    });
+    
+    // Spinning time particles around clock
+    const clockParticles = this.add.particles(1250, 280, 'default', {
+        speed: { min: 30, max: 60 },
+        angle: { min: 0, max: 360 },
+        scale: { start: 0.6, end: 0 },
+        alpha: { start: 0.8, end: 0 },
+        tint: [0xffd700, 0xed8936],
+        lifespan: 2000,
+        frequency: 200,
+        quantity: 1,
+        blendMode: 'ADD'
+    }).setDepth(2);
     
     // Animated particles background
     this.add.particles(0, 0, 'default', {
@@ -376,6 +468,89 @@ TitleScene.prototype.create = function() {
         duration: 1000,
         delay: 4000
     });
+    
+    // Show sound prompt after a delay
+    this.time.delayedCall(1000, () => {
+        this.showSoundPrompt();
+    });
+};
+
+TitleScene.prototype.showSoundPrompt = function() {
+    // Create pulsing overlay to prompt for click
+    this.soundPromptOverlay = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0.3)
+        .setDepth(1000)
+        .setInteractive();
+    
+    this.tweens.add({
+        targets: this.soundPromptOverlay,
+        alpha: 0.5,
+        duration: 1000,
+        yoyo: true,
+        repeat: -1
+    });
+    
+    // Sound icon
+    this.soundPromptIcon = this.add.text(700, 380, '🔊', {
+        font: 'bold 80px monospace'
+    }).setOrigin(0.5).setDepth(1001);
+    
+    // Bouncing animation
+    this.tweens.add({
+        targets: this.soundPromptIcon,
+        scale: 1.2,
+        duration: 600,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1
+    });
+    
+    // Prompt text
+    this.soundPromptText = this.add.text(700, 500, 'CLICK ANYWHERE TO START WITH SOUND', {
+        font: 'bold 32px monospace',
+        fill: '#ffd700',
+        stroke: '#000000',
+        strokeThickness: 4
+    }).setOrigin(0.5).setDepth(1001);
+    
+    // Pulse text
+    this.tweens.add({
+        targets: this.soundPromptText,
+        alpha: 0.6,
+        duration: 800,
+        yoyo: true,
+        repeat: -1
+    });
+    
+    // Remove prompt on first click
+    this.soundPromptOverlay.once('pointerdown', () => {
+        this.tweens.killTweensOf([this.soundPromptOverlay, this.soundPromptIcon, this.soundPromptText]);
+        
+        this.tweens.add({
+            targets: [this.soundPromptOverlay, this.soundPromptIcon, this.soundPromptText],
+            alpha: 0,
+            duration: 400,
+            onComplete: () => {
+                this.soundPromptOverlay.destroy();
+                this.soundPromptIcon.destroy();
+                this.soundPromptText.destroy();
+            }
+        });
+    });
+};
+
+TitleScene.prototype.startMusic = function() {
+    try {
+        if (!this.music) {
+            this.music = this.sound.add('music_main', {
+                volume: 0.25,
+                loop: true
+            });
+            this.music.play();
+            console.log('✅ Title music started');
+        }
+    } catch (e) {
+        console.log('Music start failed:', e);
+    }
 };
 
 TitleScene.prototype.startGame = function() {
@@ -804,13 +979,15 @@ MainScene.prototype.constructor = MainScene;
 
 MainScene.prototype.preload = function() {
     // Load all sound effects (music is already loaded in TitleScene)
-    this.load.audio('sfx_correct', 'assets/audio/correct.wav');
-    this.load.audio('sfx_wrong', 'assets/audio/wrong.wav');
-    this.load.audio('sfx_tick', 'assets/audio/tick.wav');
-    this.load.audio('sfx_dayComplete', 'assets/audio/fanfare.wav');
-    this.load.audio('sfx_whoosh', 'assets/audio/whoosh.wav');
-    this.load.audio('sfx_timesUp', 'assets/audio/timesup.wav');
-    this.load.audio('sfx_hint', 'assets/audio/hint.wav');
+    // Add cache busting to prevent browser from using old cached sounds
+    const cacheBuster = '?v=' + Date.now();
+    this.load.audio('sfx_correct', 'assets/audio/correct.wav' + cacheBuster);
+    this.load.audio('sfx_wrong', 'assets/audio/wrong.wav' + cacheBuster);
+    this.load.audio('sfx_tick', 'assets/audio/tick.wav' + cacheBuster);
+    this.load.audio('sfx_dayComplete', 'assets/audio/fanfare.wav' + cacheBuster);
+    this.load.audio('sfx_whoosh', 'assets/audio/whoosh.wav' + cacheBuster);
+    this.load.audio('sfx_timesUp', 'assets/audio/timesup.wav' + cacheBuster);
+    this.load.audio('sfx_hint', 'assets/audio/hint.wav' + cacheBuster);
 };
 
 // ============================================================
