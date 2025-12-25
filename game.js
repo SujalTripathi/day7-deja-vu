@@ -1526,7 +1526,7 @@ MainScene.prototype.createParticleEmitters = function() {
 MainScene.prototype.createAmbientParticles = function() {
     this.ambientParticles = this.add.particles(0, 0, 'default', {
         x: { min: 0, max: 1400 },
-        y: { min: -50, max: 0 },
+        y: { min: 0, max: 900 },
         speedX: { min: -20, max: 20 },
         speedY: { min: 30, max: 60 },
         scale: { min: 0.2, max: 0.5 },
@@ -2801,7 +2801,7 @@ MainScene.prototype.showFullEnding = function() {
     // Detailed stats
     const stats = this.add.text(700, 680, 
         `Max Combo: ${this.maxCombo}x | Total Streak: ${this.streak} | Errors: ${this.wrongClicks}`, {
-        font: '24px monospace',
+        font: 'bold 24px monospace',
         fill: '#cbd5e0',
         stroke: '#000000',
         strokeThickness: 3
@@ -3348,6 +3348,7 @@ CreditsScene.prototype.create = function() {
     });
 };
 
+
 // ============================================================
 // MEMORY FRAGMENT - Show ghost of previous state
 // ============================================================
@@ -3568,7 +3569,7 @@ MainScene.prototype.applyDay7StartGlitchEffect = function(overlay, dayNum, story
         this.tweens.add({
             targets: specialTitle,
             alpha: 1,
-            scale: { from: 0.5, to: 1 },
+            scale: 1,
             duration: 800,
             ease: 'Back.easeOut'
         });
@@ -4031,6 +4032,7 @@ MainScene.prototype.createTimeParticleExplosion = function() {
         });
     }
 };
+
 
 // ============================================================
 // Game initialized and ready!
