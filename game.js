@@ -168,7 +168,7 @@ TitleScene.prototype.constructor = TitleScene;
 
 TitleScene.prototype.preload = function() {
     // Load title screen music (same as main game)
-    this.load.audio('music_main', 'assets/audio/ambient_loop.ogg');
+    this.load.audio('music_main', 'assets/audio/Kids.mp3');
     this.load.audio('sfx_click', 'assets/audio/ui_click.wav');
 };
 
