@@ -2608,19 +2608,19 @@ MainScene.prototype.showEnding = function () {
 };
 
 
-MainScene.prototype.showCongratulations = function() {
+MainScene.prototype.showCongratulations = function () {
     console.log("🎉 Showing congratulations screen...");
-    
+
     // Congratulations overlay
     const bg = this.add.rectangle(700, 450, 1400, 900, 0x000000, 0)
         .setDepth(800);
-    
+
     this.tweens.add({
         targets: bg,
         alpha: 0.9,
         duration: 800
     });
-    
+
     // Victory text
     const congrats = this.add.text(700, 350, '🎉 CONGRATULATIONS! 🎉', {
         font: 'bold 72px monospace',
@@ -2629,7 +2629,7 @@ MainScene.prototype.showCongratulations = function() {
         strokeThickness: 10,
         align: 'center'
     }).setOrigin(0.5).setDepth(801).setAlpha(0).setScale(0.5);
-    
+
     this.tweens.add({
         targets: congrats,
         alpha: 1,
@@ -2638,9 +2638,9 @@ MainScene.prototype.showCongratulations = function() {
         delay: 500,
         ease: 'Elastic.easeOut'
     });
-    
+
     // Success message
-    const message = this.add.text(700, 500, 
+    const message = this.add.text(700, 500,
         'You broke the time loop!\nYou are finally FREE!', {
         font: 'bold 36px monospace',
         fill: '#68d391',
@@ -2649,39 +2649,39 @@ MainScene.prototype.showCongratulations = function() {
         align: 'center',
         lineSpacing: 10
     }).setOrigin(0.5).setDepth(801).setAlpha(0);
-    
+
     this.tweens.add({
         targets: message,
         alpha: 1,
         duration: 800,
         delay: 1200
     });
-    
+
     // Play celebration sound
     this.time.delayedCall(500, () => {
         this.playSound('dayComplete');
     });
-    
+
     // Confetti explosion (5 waves)
     this.time.delayedCall(1000, () => {
         for (let i = 0; i < 5; i++) {
             this.time.delayedCall(i * 300, () => {
                 this.confettiParticles.emitParticleAt(
-                    Phaser.Math.Between(200, 1200), 
-                    0, 
+                    Phaser.Math.Between(200, 1200),
+                    0,
                     30
                 );
             });
         }
     });
-    
+
     // Continue prompt
-    const continueText = this.add.text(700, 650, 
+    const continueText = this.add.text(700, 650,
         'Click to see your ending...', {
         font: '28px monospace',
         fill: '#cbd5e0'
     }).setOrigin(0.5).setDepth(801).setAlpha(0);
-    
+
     this.tweens.add({
         targets: continueText,
         alpha: 1,
@@ -2690,7 +2690,7 @@ MainScene.prototype.showCongratulations = function() {
         yoyo: true,
         repeat: -1
     });
-    
+
     // Click to continue to full ending
     bg.setInteractive();
     bg.once('pointerup', () => {
