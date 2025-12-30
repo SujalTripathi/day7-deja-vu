@@ -16,7 +16,8 @@ const config = {
     parent: 'game-container',
     scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        domFullscreen: true
     },
     input: {
         activePointers: 3,
@@ -423,6 +424,8 @@ TitleScene.prototype.create = function () {
         // Click handler
         btn.on('pointerdown', () => {
             GameData.setDifficulty(diff.name.toLowerCase());
+            // Start fullscreen on game start
+            this.scale.startFullscreen();
             this.startGame();
         });
 
@@ -1406,8 +1409,8 @@ MainScene.prototype.createUI = function () {
         strokeThickness: 4
     }).setOrigin(0.5);
 
-    // Score (top-right)
-    this.scoreText = this.add.text(1300, 50, '★ 0', {
+    // Score (top-right) - moved left to make room for fullscreen button
+    this.scoreText = this.add.text(1250, 50, '★ 0', {
         font: 'bold 40px monospace',
         fill: '#ffd700',
         stroke: '#000000',
@@ -1456,8 +1459,8 @@ MainScene.prototype.createUI = function () {
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => this.toggleMusic());
 
-    // Pause button (top-right)
-    this.pauseBtn = this.add.text(1350, 50, '⏸', {
+    // Pause button (top-right) - moved left to make room for fullscreen button
+    this.pauseBtn = this.add.text(1320, 50, '⏸', {
         font: 'bold 40px monospace',
         fill: '#cbd5e0',
         backgroundColor: '#1a202c',
@@ -1465,6 +1468,27 @@ MainScene.prototype.createUI = function () {
     }).setOrigin(1, 0)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => this.togglePause());
+
+        // Fullscreen toggle button
+this.fullscreenBtn = this.add.text(1290, 50, '⛶', {
+    font: 'bold 32px monospace',
+    fill: '#68d391',
+    backgroundColor: '#1a202c',
+    padding: { x: 12, y: 8 }
+}).setOrigin(1, 0)
+  .setInteractive({ useHandCursor: true })
+  .on('pointerover', () => this.fullscreenBtn.setScale(1.1))
+  .on('pointerout', () => this.fullscreenBtn.setScale(1))
+  .on('pointerdown', () => {
+    if (this.scale.isFullscreen) {
+      this.scale.stopFullscreen();
+      this.fullscreenBtn.setText('⛶');
+    } else {
+      this.scale.startFullscreen();
+      this.fullscreenBtn.setText('✕');
+    }
+  });
+
 
     // Difficulty badge
     const diffColors = { easy: '#68d391', normal: '#ffd700', hard: '#e53e3e' };

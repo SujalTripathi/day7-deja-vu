@@ -57,9 +57,11 @@ You wake up in the same room. Again. And again. Trapped in an endless time loop,
 2. Run: `python -m http.server 8000`
 3. Open browser to `http://localhost:8000`
 4. Click anywhere to unlock audio (browser requirement)
-5. Select difficulty and start playing!
+5. Select difficulty and start playing! (Game launches in fullscreen)
 
 **Alternative:** Open `index.html` directly in a modern browser (Chrome, Firefox, Edge)
+
+**Note:** The game automatically enters fullscreen mode when you start playing. Use the ⛶ button in the top-right to exit fullscreen if needed.
 
 ### 🎥 Gameplay Highlights
 - **Dramatic Story Interludes:** Story text appears between days
